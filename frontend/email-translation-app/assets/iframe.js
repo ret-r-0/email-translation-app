@@ -6,6 +6,10 @@ const elTarget = document.getElementById("target");
 const elPreview = document.getElementById("preview");
 const btn = document.getElementById("translateBtn");
 
+// Задаём URL для бэкенда
+const BACKEND_URL =
+  "https://email-translation-app.railway.internal" || "http://localhost:3000";
+
 function recommendTarget(detected) {
   // MVP-логика: если не English -> target English, иначе -> Ukrainian
   const d = (detected || "").toLowerCase();
@@ -42,7 +46,53 @@ client.on("app.registered", () => {
   });
 });
 
-btn.addEventListener("click", () => {
-  // пока просто заглушка: позже здесь будет fetch на backend /translate
-  elStatus.textContent = "Clicked (backend later)";
+btn.addEventListener("click", async () => {
+  elStatus.textContent = "Translating…";
+
+  try {
+    // Получаем текст комментария и локаль
+    const { "ticket.comment.text": text } = await client.get(
+      "ticket.comment.text",
+    );
+    const detected =
+      (await client.get("ticket.locale"))["ticket.locale"] || "en";
+    const target = recommendTarget(detected);
+
+    // Отправляем запрос на сервер для перевода
+    const response = await fetch(
+      `${"https://email-translation-app.railway.internal"}/translate`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text,
+          sourceLang: detected,
+          targetLang: target,
+        }),
+      },
+    );
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.error || "Translation failed");
+
+    // Получаем переведённый текст
+    const translated = data.translatedText || "";
+    const delimiter = "\n\n---\n\n";
+
+    // Формируем новый текст с переводом
+    const base = (text || "").includes("\n---\n")
+      ? (text || "").split("\n---\n")[0].trim()
+      : (text || "").trim();
+    const newText = `${base}${delimiter}${translated}`;
+
+    // Обновляем комментарий в тикете
+    await client.set("ticket.comment.text", newText);
+
+    elStatus.textContent = "Done";
+  } catch (error) {
+    console.error(error);
+    elStatus.textContent = "Error (see console)";
+  }
 });
