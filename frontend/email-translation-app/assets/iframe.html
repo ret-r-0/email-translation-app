@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Email Translation</title>
+
+    <script src="https://assets.zendesk.com/apps/sdk/2.0/zaf_sdk.js"></script>
+
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 12px;
+      }
+      .row {
+        margin-bottom: 10px;
+      }
+      .muted {
+        opacity: 0.7;
+        font-size: 12px;
+      }
+      button {
+        padding: 8px 10px;
+        cursor: pointer;
+      }
+      pre {
+        white-space: pre-wrap;
+        background: #f6f6f6;
+        padding: 10px;
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="row">
+      <strong>Status:</strong> <span id="status">Loading…</span>
+    </div>
+    <div class="row muted">
+      Detected: <span id="detected">-</span> | Target:
+      <span id="target">-</span>
+    </div>
+
+    <div class="row">
+      <button id="translateBtn" disabled>Translate</button>
+    </div>
+
+    <div class="row">
+      <div class="muted">Preview:</div>
+      <pre id="preview">(no text)</pre>
+    </div>
+
+    <script src="iframe.js"></script>
+  </body>
+</html>
