@@ -8,7 +8,8 @@ const btn = document.getElementById("translateBtn");
 
 // Задаём URL для бэкенда
 const BACKEND_URL =
-  "https://email-translation-app.railway.internal" || "http://localhost:3000";
+  "https://email-translation-app-production.up.railway.app" ||
+  "http://localhost:3000";
 
 function recommendTarget(detected) {
   // MVP-логика: если не English -> target English, иначе -> Ukrainian
@@ -60,7 +61,7 @@ btn.addEventListener("click", async () => {
 
     // Отправляем запрос на сервер для перевода
     const response = await fetch(
-      `${"https://email-translation-app.railway.internal"}/translate`,
+      `${"https://email-translation-app-production.up.railway.app"}/translate`,
       {
         method: "POST",
         headers: {
