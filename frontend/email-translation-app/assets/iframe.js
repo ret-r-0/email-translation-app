@@ -6,33 +6,44 @@ const elTarget = document.getElementById("target");
 const elPreview = document.getElementById("preview");
 const btn = document.getElementById("translateBtn");
 
-/**
- * ВАЖНО:
- * сюда вставь ДОМЕН ИМЕННО backend-сервиса из Railway → Domains
- * без слеша на конце
- */
+// Вставь свой backend URL (тот, где /health = ok)
 const BACKEND_URL = "https://email-translation-app-production.up.railway.app";
 
 function recommendTarget(detected) {
   const d = (detected || "").toLowerCase();
-  // если не English → переводим в English
   if (d && d !== "en" && d !== "english") return "en";
-  // если English → в Ukrainian (MVP-дефолт)
   return "uk";
+}
+
+// безопасно получаем первый доступный locale, не падая на InvalidPathError
+async function getDetectedLocaleSafe() {
+  const candidates = [
+    "ticket.requester.locale",
+    "ticket.requester.language",
+    "currentUser.locale",
+  ];
+
+  for (const path of candidates) {
+    try {
+      const data = await client.get(path);
+      const val = data?.[path];
+      if (val) return val;
+    } catch (_) {
+      // игнорируем InvalidPathError и пробуем следующий
+    }
+  }
+  return "en";
 }
 
 async function loadTicketContext() {
   elStatus.textContent = "Reading ticket…";
 
   try {
-    const [{ "ticket.comment.text": text }, locales] = await Promise.all([
-      client.get("ticket.comment.text"),
-      client.get(["ticket.locale", "ticket.requester.locale"]),
-    ]);
+    const { "ticket.comment.text": text } = await client.get(
+      "ticket.comment.text",
+    );
 
-    const detected =
-      locales["ticket.locale"] || locales["ticket.requester.locale"] || "";
-
+    const detected = await getDetectedLocaleSafe();
     const target = recommendTarget(detected);
 
     elDetected.textContent = detected || "(unknown)";
@@ -59,17 +70,12 @@ btn.addEventListener("click", async () => {
     const { "ticket.comment.text": text } = await client.get(
       "ticket.comment.text",
     );
-
-    const detected =
-      (await client.get("ticket.locale"))["ticket.locale"] || "en";
-
+    const detected = await getDetectedLocaleSafe();
     const target = recommendTarget(detected);
 
     const response = await fetch(`${BACKEND_URL}/translate`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         text,
         sourceLang: detected,
@@ -78,16 +84,13 @@ btn.addEventListener("click", async () => {
     });
 
     const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data?.error || "Translation failed");
-    }
+    if (!response.ok) throw new Error(data?.error || "Translation failed");
 
     const translated = data.translatedText || "";
     const delimiter = "\n\n---\n\n";
 
-    // не дублируем перевод при повторном клике
-    const base = (text || "").includes("\n\n---\n\n")
-      ? (text || "").split("\n\n---\n\n")[0].trim()
+    const base = (text || "").includes(delimiter)
+      ? (text || "").split(delimiter)[0].trim()
       : (text || "").trim();
 
     const newText = `${base}${delimiter}${translated}`;
