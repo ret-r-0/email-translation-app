@@ -136,8 +136,8 @@ btn.addEventListener("click", async () => {
     // Вставляем текст о переводе на нужном языке
     const translationMessage = messages[agentLocale] || messages["en"];
 
-    // Формируем финальный текст: оригинал + перевод + разделитель
-    const newText = `${translationMessage}${delimiter}${translated}${delimiter}${base}`;
+    // Формируем финальный текст: оригинал + перевод, чёрточки только перед переводом
+    const newText = `${translationMessage}${delimiter}${translated}\n\n${base}`;
 
     // Обновляем текст в редакторе
     await client.set("ticket.comment.text", newText);
