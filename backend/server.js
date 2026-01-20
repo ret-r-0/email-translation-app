@@ -3,19 +3,26 @@ import axios from "axios";
 import cors from "cors";
 import dotenv from "dotenv";
 
-// Загружаем переменные окружения из .env файла
+// load env vars
 dotenv.config();
 
 const app = express();
-app.use(express.json()); // Парсим JSON в теле запросов
-app.use(cors()); // Разрешаем CORS для всех источников
 
-// API endpoint для проверки, что сервер работает
-app.get("/health", (req, res) => {
-  res.json({ ok: true });
+// middlewares
+app.use(cors());
+app.use(express.json());
+
+// ROOT endpoint (ВАЖНО для Railway)
+app.get("/", (_req, res) => {
+  res.status(200).send("OK");
 });
 
-// API endpoint для перевода текста
+// health check
+app.get("/health", (_req, res) => {
+  res.status(200).json({ ok: true });
+});
+
+// translate endpoint
 app.post("/translate", async (req, res) => {
   const { text, sourceLang, targetLang } = req.body;
 
@@ -23,33 +30,41 @@ app.post("/translate", async (req, res) => {
     return res.status(400).json({ error: "Missing required parameters" });
   }
 
+  if (!process.env.DEEPL_API_KEY) {
+    return res.status(500).json({ error: "DEEPL_API_KEY not configured" });
+  }
+
   try {
-    // Запрос к DeepL API для перевода текста
     const response = await axios.post(
       "https://api-free.deepl.com/v2/translate",
       null,
       {
         params: {
-          auth_key: process.env.DEEPL_API_KEY, // Ключ API из переменных окружения
-          text: text,
-          source_lang: sourceLang || "auto", // Если не указан язык источника, используем авто-определение
-          target_lang: targetLang.toUpperCase(), // DeepL ожидает код языка в верхнем регистре
+          auth_key: process.env.DEEPL_API_KEY,
+          text,
+          source_lang: sourceLang || "auto",
+          target_lang: targetLang.toUpperCase(),
         },
+        timeout: 10000,
       },
     );
 
-    // Возвращаем переведённый текст
-    const translatedText = response.data.translations[0].text;
+    const translatedText = response?.data?.translations?.[0]?.text;
+
+    if (!translatedText) {
+      return res.status(500).json({ error: "Empty translation response" });
+    }
+
     res.json({ translatedText });
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    console.error("DeepL error:", err?.response?.data || err.message);
     res.status(500).json({ error: "Translation failed" });
   }
 });
 
-// Запускаем сервер на порту 3000
-const port = process.env.PORT || 3000;
+// listen (Railway-compatible)
+const PORT = process.env.PORT || 3000;
 
-app.listen(port, "0.0.0.0", () => {
-  console.log(`Server is running on port ${port}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server is running on port ${PORT}`);
 });
