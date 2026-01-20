@@ -3,16 +3,14 @@ import axios from "axios";
 import cors from "cors";
 import dotenv from "dotenv";
 
-// load env vars
 dotenv.config();
 
 const app = express();
 
-// middlewares
 app.use(cors());
 app.use(express.json());
 
-// ROOT endpoint (ВАЖНО для Railway)
+// ROOT endpoint (важно для Railway healthcheck)
 app.get("/", (_req, res) => {
   res.status(200).send("OK");
 });
@@ -26,7 +24,7 @@ app.get("/health", (_req, res) => {
 app.post("/translate", async (req, res) => {
   const { text, sourceLang, targetLang } = req.body;
 
-  if (!text || !targetLang) {
+  if (typeof text !== "string" || !text.length || !targetLang) {
     return res.status(400).json({ error: "Missing required parameters" });
   }
 
@@ -35,18 +33,25 @@ app.post("/translate", async (req, res) => {
   }
 
   try {
+    // IMPORTANT:
+    // DeepL auto-detect = do NOT send source_lang at all.
+    const params = {
+      auth_key: process.env.DEEPL_API_KEY,
+      text,
+      target_lang: String(targetLang).toUpperCase(),
+      preserve_formatting: 1,
+      split_sentences: 0,
+    };
+
+    // only add source_lang if explicitly provided (optional)
+    if (sourceLang) {
+      params.source_lang = String(sourceLang).toUpperCase();
+    }
+
     const response = await axios.post(
       "https://api-free.deepl.com/v2/translate",
       null,
-      {
-        params: {
-          auth_key: process.env.DEEPL_API_KEY,
-          text,
-          source_lang: sourceLang || "auto",
-          target_lang: targetLang.toUpperCase(),
-        },
-        timeout: 10000,
-      },
+      { params, timeout: 20000 },
     );
 
     const translatedText = response?.data?.translations?.[0]?.text;
@@ -62,7 +67,6 @@ app.post("/translate", async (req, res) => {
   }
 });
 
-// listen (Railway-compatible)
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, "0.0.0.0", () => {

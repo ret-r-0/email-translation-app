@@ -9,29 +9,33 @@ const btn = document.getElementById("translateBtn");
 // Вставь свой backend URL (тот, где /health = ok)
 const BACKEND_URL = "https://email-translation-app-production.up.railway.app";
 
-function recommendTarget(detected) {
-  const d = (detected || "").toLowerCase();
-  if (d && d !== "en" && d !== "english") return "en";
-  return "uk";
+// ДЛИННАЯ линия в поле (вместо ---)
+const delimiter = "\n\n" + "-".repeat(60) + "\n\n";
+// если хочешь “жирнее” визуально — попробуй:
+// const delimiter = "\n\n" + "—".repeat(60) + "\n\n";
+
+function normalizeTargetFromAgentLocale(locale) {
+  const l = (locale || "").toLowerCase();
+
+  // Zendesk locales часто бывают вида "uk", "uk-UA", "ru", "ru-RU", "en-US" и т.д.
+  if (l.startsWith("uk")) return "UK";
+  if (l.startsWith("ru")) return "EN";
+
+  // дефолт
+  return "EN";
 }
 
-// безопасно получаем первый доступный locale, не падая на InvalidPathError
-async function getDetectedLocaleSafe() {
-  const candidates = [
-    "ticket.requester.locale",
-    "ticket.requester.language",
-    "currentUser.locale",
-  ];
+async function getAgentLocaleSafe() {
+  const candidates = ["currentUser.locale", "currentUser.language"];
 
   for (const path of candidates) {
     try {
       const data = await client.get(path);
       const val = data?.[path];
       if (val) return val;
-    } catch (_) {
-      // игнорируем InvalidPathError и пробуем следующий
-    }
+    } catch (_) {}
   }
+
   return "en";
 }
 
@@ -39,20 +43,23 @@ async function loadTicketContext() {
   elStatus.textContent = "Reading ticket…";
 
   try {
-    const { "ticket.comment.text": text } = await client.get(
+    const { "ticket.comment.text": rawText } = await client.get(
       "ticket.comment.text",
     );
+    const text = rawText || "";
 
-    const detected = await getDetectedLocaleSafe();
-    const target = recommendTarget(detected);
+    // показываем preview только оригинала (до delimiter), чтобы не путаться
+    const base = text.includes(delimiter) ? text.split(delimiter)[0] : text;
 
-    elDetected.textContent = detected || "(unknown)";
+    const agentLocale = await getAgentLocaleSafe();
+    const target = normalizeTargetFromAgentLocale(agentLocale);
+
+    elDetected.textContent = "(DeepL auto)";
     elTarget.textContent = target;
 
-    const trimmed = (text || "").trim();
-    elPreview.textContent = trimmed ? trimmed.slice(0, 1200) : "(no text)";
+    elPreview.textContent = base ? base.slice(0, 1200) : "(no text)";
+    btn.disabled = !base;
 
-    btn.disabled = !trimmed;
     elStatus.textContent = "Ready";
   } catch (err) {
     console.error(err);
@@ -67,19 +74,29 @@ btn.addEventListener("click", async () => {
   btn.disabled = true;
 
   try {
-    const { "ticket.comment.text": text } = await client.get(
+    const { "ticket.comment.text": rawText } = await client.get(
       "ticket.comment.text",
     );
-    const detected = await getDetectedLocaleSafe();
-    const target = recommendTarget(detected);
+    const text = rawText || "";
 
+    // 1) переводим только оригинал (до delimiter), без trim, чтобы сохранить форматирование
+    const base = text.includes(delimiter) ? text.split(delimiter)[0] : text;
+
+    // 2) target по локали агента
+    const agentLocale = await getAgentLocaleSafe();
+    const target = normalizeTargetFromAgentLocale(agentLocale);
+
+    elDetected.textContent = "(DeepL auto)";
+    elTarget.textContent = target;
+
+    // 3) bulk перевод всего base
     const response = await fetch(`${BACKEND_URL}/translate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        text,
-        sourceLang: detected,
+        text: base,
         targetLang: target,
+        // sourceLang НЕ отправляем -> DeepL auto-detect
       }),
     });
 
@@ -87,12 +104,8 @@ btn.addEventListener("click", async () => {
     if (!response.ok) throw new Error(data?.error || "Translation failed");
 
     const translated = data.translatedText || "";
-    const delimiter = "\n\n---\n\n";
 
-    const base = (text || "").includes(delimiter)
-      ? (text || "").split(delimiter)[0].trim()
-      : (text || "").trim();
-
+    // 4) append mode: оригинал + линия + перевод
     const newText = `${base}${delimiter}${translated}`;
 
     await client.set("ticket.comment.text", newText);
