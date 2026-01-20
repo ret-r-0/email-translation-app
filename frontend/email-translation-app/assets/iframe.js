@@ -6,28 +6,19 @@ const elTarget = document.getElementById("target");
 const elPreview = document.getElementById("preview");
 const btn = document.getElementById("translateBtn");
 
-// Вставь свой backend URL (тот, где /health = ok)
 const BACKEND_URL = "https://email-translation-app-production.up.railway.app";
 
-// ДЛИННАЯ линия в поле (вместо ---)
+// ДЛИННАЯ линия как в поле (а не markdown-hr)
 const delimiter = "\n\n" + "-".repeat(60) + "\n\n";
-// если хочешь “жирнее” визуально — попробуй:
-// const delimiter = "\n\n" + "—".repeat(60) + "\n\n";
 
-function normalizeTargetFromAgentLocale(locale) {
-  const l = (locale || "").toLowerCase();
-
-  // Zendesk locales часто бывают вида "uk", "uk-UA", "ru", "ru-RU", "en-US" и т.д.
-  if (l.startsWith("uk")) return "UK";
-  if (l.startsWith("ru")) return "EN";
-
-  // дефолт
-  return "EN";
-}
+// Тексты, которые нужно вставлять на других языках
+const messages = {
+  es: "Para asegurar una comunicación más clara y rápida, este mensaje ha sido traducido utilizando herramientas de traducción automática. Si bien nos esforzamos por lograr la precisión, apreciamos su comprensión sobre las imperfecciones que puedan ocurrir debido a la traducción automatizada.",
+  en: "To ensure clearer and faster communication, this message has been translated using machine translation tools. While we strive for accuracy, we appreciate your understanding regarding any imperfections that may occur due to automated translation.",
+};
 
 async function getAgentLocaleSafe() {
-  const candidates = ["currentUser.locale", "currentUser.language"];
-
+  const candidates = ["ticket.requester.language", "currentUser.language"];
   for (const path of candidates) {
     try {
       const data = await client.get(path);
@@ -35,8 +26,7 @@ async function getAgentLocaleSafe() {
       if (val) return val;
     } catch (_) {}
   }
-
-  return "en";
+  return "en"; // fallback
 }
 
 async function loadTicketContext() {
@@ -89,7 +79,7 @@ btn.addEventListener("click", async () => {
     elDetected.textContent = "(DeepL auto)";
     elTarget.textContent = target;
 
-    // 3) bulk перевод всего base
+    // 3) отправляем в DeepL только base (bulk, со всеми переносами)
     const response = await fetch(`${BACKEND_URL}/translate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -105,9 +95,11 @@ btn.addEventListener("click", async () => {
 
     const translated = data.translatedText || "";
 
-    // 4) append mode: оригинал + линия + перевод
-    const newText = `${base}${delimiter}${translated}`;
+    // 4) вставляем сообщение о переводе на нужном языке (в зависимости от языка клиента)
+    const translationMessage = messages[agentLocale] || messages["en"];
+    const newText = `${translationMessage}${delimiter}${translated}`;
 
+    // 5) аппендим перевод обратно
     await client.set("ticket.comment.text", newText);
 
     elStatus.textContent = "Done";
