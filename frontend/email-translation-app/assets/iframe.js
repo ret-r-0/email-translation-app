@@ -8,8 +8,9 @@ const btn = document.getElementById("translateBtn");
 
 // Задаём URL для бэкенда
 const BACKEND_URL =
-  "https://email-translation-app-production.up.railway.app" ||
-  "http://localhost:3000";
+  process.env.NODE_ENV === "production"
+    ? "https://email-translation-app-production.up.railway.app"
+    : "http://localhost:3000";
 
 function recommendTarget(detected) {
   // MVP-логика: если не English -> target English, иначе -> Ukrainian
@@ -21,31 +22,31 @@ function recommendTarget(detected) {
 async function loadTicketContext() {
   elStatus.textContent = "Reading ticket…";
 
-  const [{ "ticket.comment.text": text }, locales] = await Promise.all([
-    client.get("ticket.comment.text"),
-    client.get(["ticket.locale", "ticket.requester.locale"]),
-  ]);
+  try {
+    const [{ "ticket.comment.text": text }, locales] = await Promise.all([
+      client.get("ticket.comment.text"),
+      client.get(["ticket.locale", "ticket.requester.locale"]),
+    ]);
 
-  const detected =
-    locales["ticket.locale"] || locales["ticket.requester.locale"] || "";
-  const target = recommendTarget(detected);
+    const detected =
+      locales["ticket.locale"] || locales["ticket.requester.locale"] || "";
+    const target = recommendTarget(detected);
 
-  elDetected.textContent = detected || "(unknown)";
-  elTarget.textContent = target;
+    elDetected.textContent = detected || "(unknown)";
+    elTarget.textContent = target;
 
-  const trimmed = (text || "").trim();
-  elPreview.textContent = trimmed ? trimmed.slice(0, 1200) : "(no text)";
+    const trimmed = (text || "").trim();
+    elPreview.textContent = trimmed ? trimmed.slice(0, 1200) : "(no text)";
 
-  btn.disabled = !trimmed;
-  elStatus.textContent = "Ready";
-}
-
-client.on("app.registered", () => {
-  loadTicketContext().catch((e) => {
+    btn.disabled = !trimmed;
+    elStatus.textContent = "Ready";
+  } catch (e) {
     console.error(e);
     elStatus.textContent = "Error (see console)";
-  });
-});
+  }
+}
+
+client.on("app.registered", loadTicketContext);
 
 btn.addEventListener("click", async () => {
   elStatus.textContent = "Translating…";
@@ -60,20 +61,17 @@ btn.addEventListener("click", async () => {
     const target = recommendTarget(detected);
 
     // Отправляем запрос на сервер для перевода
-    const response = await fetch(
-      `${"https://email-translation-app-production.up.railway.app"}/translate`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          text,
-          sourceLang: detected,
-          targetLang: target,
-        }),
+    const response = await fetch(`${BACKEND_URL}/translate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        text,
+        sourceLang: detected,
+        targetLang: target,
+      }),
+    });
 
     const data = await response.json();
     if (!response.ok) throw new Error(data?.error || "Translation failed");
@@ -94,6 +92,6 @@ btn.addEventListener("click", async () => {
     elStatus.textContent = "Done";
   } catch (error) {
     console.error(error);
-    elStatus.textContent = "Error (see console)";
+    elStatus.textContent = `Error: ${error.message || "See console"}`;
   }
 });
