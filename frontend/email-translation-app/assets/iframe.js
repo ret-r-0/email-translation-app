@@ -14,17 +14,27 @@ const delimiter = "\n\n" + "-".repeat(60) + "\n\n";
 
 // Тексты, которые нужно вставлять на других языках
 const messages = {
+  de: "Um eine klarere und schnellere Kommunikation zu gewährleisten, wurde diese Nachricht mit automatischen Übersetzungswerkzeugen übersetzt. Während wir uns um Genauigkeit bemühen, danken wir Ihnen für Ihr Verständnis hinsichtlich möglicher Unvollkommenheiten aufgrund der automatisierten Übersetzung.",
   es: "Para asegurar una comunicación más clara y rápida, este mensaje ha sido traducido utilizando herramientas de traducción automática. Si bien nos esforzamos por lograr la precisión, apreciamos su comprensión sobre las imperfecciones que puedan ocurrir debido a la traducción automatizada.",
-  en: "To ensure clearer and faster communication, this message has been translated using machine translation tools. While we strive for accuracy, we appreciate your understanding regarding any imperfections that may occur due to automated translation.",
   fr: "Pour garantir une communication plus claire et rapide, ce message a été traduit à l'aide d'outils de traduction automatique. Bien que nous nous efforcions de garantir la précision, nous vous remercions de votre compréhension quant aux imperfections qui peuvent survenir en raison de la traduction automatisée.",
+  it: "Per garantire una comunicazione più chiara e rapida, questo messaggio è stato tradotto utilizzando strumenti di traduzione automatica. Sebbene ci impegniamo per la precisione, apprezziamo la vostra comprensione riguardo a eventuali imperfezioni che potrebbero verificarsi a causa della traduzione automatica.",
+  pt: "Para garantir uma comunicação mais clara e rápida, esta mensagem foi traduzida utilizando ferramentas de tradução automática. Embora nos esforcemos pela precisão, agradecemos a sua compreensão em relação a quaisquer imperfeições que possam ocorrer devido à tradução automatizada.",
+  ja: "より明確で迅速なコミュニケーションを確保するため、このメッセージは機械翻訳ツールを使用して翻訳されました。正確性を期していますが、機械翻訳に起因する可能な不完全さについて理解をいただければと思います。",
+  ar: "لتوفير اتصال أوضح وأسرع، تم ترجمة هذه الرسالة باستخدام أدوات الترجمة الآلية. بينما نسعى جاهدين من أجل الدقة، نقدر تفهمك بشأن أي عيوب قد تحدث بسبب الترجمة الآلية.",
+  en: "To ensure clearer and faster communication, this message has been translated using machine translation tools. While we strive for accuracy, we appreciate your understanding regarding any imperfections that may occur due to automated translation.",
 };
 
 // Функция для нормализации языка из локали агента (выбираем правильный язык)
 function normalizeTargetFromAgentLocale(locale) {
   const l = (locale || "").toLowerCase();
 
+  if (l.startsWith("de")) return "de"; // Немецкий
   if (l.startsWith("es")) return "es"; // Испанский
   if (l.startsWith("fr")) return "fr"; // Французский
+  if (l.startsWith("it")) return "it"; // Итальянский
+  if (l.startsWith("pt")) return "pt"; // Португальский
+  if (l.startsWith("ja")) return "ja"; // Японский
+  if (l.startsWith("ar")) return "ar"; // Арабский
   return "en"; // По умолчанию английский
 }
 
@@ -125,7 +135,9 @@ btn.addEventListener("click", async () => {
 
     // Вставляем текст о переводе на нужном языке
     const translationMessage = messages[agentLocale] || messages["en"];
-    const newText = `${translationMessage}${delimiter}${translated}`;
+
+    // Формируем финальный текст: оригинал + перевод + разделитель
+    const newText = `${translationMessage}${delimiter}${translated}${delimiter}${base}`;
 
     // Обновляем текст в редакторе
     await client.set("ticket.comment.text", newText);
