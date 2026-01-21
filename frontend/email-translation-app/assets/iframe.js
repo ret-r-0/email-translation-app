@@ -119,6 +119,11 @@ btn.addEventListener("click", async () => {
       targetLang: target,
     }); // Логируем запрос
 
+    if (!base) {
+      elStatus.textContent = "No text to translate";
+      return;
+    }
+
     const response = await fetch(`${BACKEND_URL}/translate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -128,8 +133,20 @@ btn.addEventListener("click", async () => {
       }),
     });
 
-    const data = await response.json();
-    if (!response.ok) throw new Error(data?.error || "Translation failed");
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (parseErr) {
+      console.error("Failed to parse response JSON:", parseErr);
+    }
+
+    if (!response.ok) {
+      console.error("Translation failed:", {
+        status: response.status,
+        data,
+      });
+      throw new Error(data?.error || "Translation failed");
+    }
 
     const translated = data.translatedText || "";
 
