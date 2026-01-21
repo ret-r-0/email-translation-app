@@ -50,11 +50,17 @@ app.post("/translate", async (req, res) => {
 
     const deeplBaseUrl =
       process.env.DEEPL_API_BASE_URL || "https://api-free.deepl.com";
+    const safeParams = { ...params, auth_key: "REDACTED" };
+    console.log("DeepL request:", {
+      url: `${deeplBaseUrl}/v2/translate`,
+      params: safeParams,
+    });
     const response = await axios.post(
       `${deeplBaseUrl}/v2/translate`,
       null,
       { params, timeout: 20000 },
     );
+    console.log("DeepL response:", response?.data);
 
     const translatedText = response?.data?.translations?.[0]?.text;
 
@@ -64,8 +70,13 @@ app.post("/translate", async (req, res) => {
 
     res.json({ translatedText });
   } catch (err) {
-    console.error("DeepL error:", err?.response?.data || err.message);
-    res.status(500).json({ error: "Translation failed" });
+    const status = err?.response?.status;
+    const data = err?.response?.data;
+    console.error("DeepL error:", data || err.message);
+    res.status(500).json({
+      error: "Translation failed",
+      details: status ? { status, data } : undefined,
+    });
   }
 });
 
