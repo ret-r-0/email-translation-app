@@ -48,8 +48,10 @@ app.post("/translate", async (req, res) => {
       params.source_lang = String(sourceLang).toUpperCase();
     }
 
+    const deeplBaseUrl =
+      process.env.DEEPL_API_BASE_URL || "https://api-free.deepl.com";
     const response = await axios.post(
-      "https://api-free.deepl.com/v2/translate",
+      `${deeplBaseUrl}/v2/translate`,
       null,
       { params, timeout: 20000 },
     );
