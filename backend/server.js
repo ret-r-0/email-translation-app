@@ -27,48 +27,42 @@ app.post("/translate", async (req, res) => {
   const requestId = Math.random().toString(36).slice(2, 10);
   const { text, targetLang } = req.body;
   console.log("Request body:", req.body);
-  console.log("OPENAI_API_KEY set:", Boolean(process.env.OPENAI_API_KEY));
+  console.log("DEEPL_API_KEY set:", Boolean(process.env.DEEPL_API_KEY));
 
   if (typeof text !== "string" || !text.length || !targetLang) {
     console.error("Missing parameters:", { requestId });
     return res.status(400).json({ error: "Missing required parameters" });
   }
 
-  if (!process.env.OPENAI_API_KEY) {
-    console.error("OPENAI_API_KEY not configured:", { requestId });
-    return res.status(500).json({ error: "OPENAI_API_KEY not configured" });
+  if (!process.env.DEEPL_API_KEY) {
+    console.error("DEEPL_API_KEY not configured:", { requestId });
+    return res.status(500).json({ error: "DEEPL_API_KEY not configured" });
   }
 
   try {
-    const sendOpenAIRequest = () =>
-      axios.post(
-        "https://api.openai.com/v1/chat/completions",
-        {
-          model: "gpt-3.5-turbo",
-          messages: [
-            {
-              role: "system",
-              content: `Translate to ${targetLang}. Return only the translation.`,
-            },
-            { role: "user", content: text },
-          ],
-          max_tokens: 500,
-          temperature: 0.2,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          },
-        },
-      );
+    const deeplUrl =
+      process.env.DEEPL_API_URL || "https://api-free.deepl.com/v2/translate";
+    const deeplTarget = String(targetLang || "").toUpperCase();
+
+    const sendDeepLRequest = () => {
+      const body = new URLSearchParams();
+      body.append("auth_key", process.env.DEEPL_API_KEY);
+      body.append("text", text);
+      body.append("target_lang", deeplTarget);
+      body.append("tag_handling", "html");
+      body.append("split_sentences", "nonewlines");
+
+      return axios.post(deeplUrl, body, {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      });
+    };
 
     const maxAttempts = 3;
     const baseDelayMs = 1000;
     let response;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       try {
-        response = await sendOpenAIRequest();
+        response = await sendDeepLRequest();
         break;
       } catch (err) {
         const status = err.response?.status;
@@ -88,7 +82,7 @@ app.post("/translate", async (req, res) => {
       }
     }
 
-    const translatedText = response?.data?.choices?.[0]?.message?.content;
+    const translatedText = response?.data?.translations?.[0]?.text;
 
     if (!translatedText) {
       return res.status(500).json({ error: "Empty translation response" });
@@ -98,16 +92,23 @@ app.post("/translate", async (req, res) => {
   } catch (err) {
     const status = err.response?.status;
     const data = err.response?.data;
-    console.error("OpenAI error:", {
+    console.error("DeepL error:", {
       requestId,
       message: err.message,
       status,
       data,
     });
+    const details =
+      data?.message ||
+      data?.error?.message ||
+      data?.error ||
+      (typeof data === "string" ? data : undefined);
     if (status === 429) {
-      return res.status(429).json({ error: "Rate limit exceeded" });
+      return res
+        .status(429)
+        .json({ error: "Rate limit exceeded", details });
     }
-    res.status(500).json({ error: "Translation failed" });
+    res.status(500).json({ error: "Translation failed", details });
   }
 });
 

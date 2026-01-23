@@ -145,7 +145,9 @@ btn.addEventListener("click", async () => {
         status: response.status,
         data,
       });
-      throw new Error(data?.error || "Translation failed");
+      const message =
+        data?.details || data?.error || `Translation failed (${response.status})`;
+      throw new Error(message);
     }
 
     const translated = data.translatedText || "";
@@ -162,7 +164,9 @@ btn.addEventListener("click", async () => {
     elStatus.textContent = "Done";
   } catch (err) {
     console.error("Error during translation:", err);
-    elStatus.textContent = "Error (see console)";
+    elStatus.textContent = err?.message
+      ? `Error: ${err.message}`
+      : "Error (see console)";
   } finally {
     btn.disabled = false;
   }
