@@ -10,6 +10,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // ROOT endpoint (важно для Railway healthcheck)
 app.get("/", (_req, res) => {
   res.status(200).send("OK");
@@ -41,23 +43,46 @@ app.post("/translate", async (req, res) => {
     // Constructing the prompt for translation
     const prompt = `Translate the following text into ${targetLang}: ${text}`;
 
-    const response = await axios.post(
-      "https://api.openai.com/v1/completions",
-      {
-        model: "gpt-3.5-turbo", // or use GPT-4 if preferred
-        messages: [
-          { role: "system", content: "You are a helpful assistant." },
-          { role: "user", content: prompt },
-        ],
-        max_tokens: 500,
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+    const sendOpenAIRequest = () =>
+      axios.post(
+        "https://api.openai.com/v1/completions",
+        {
+          model: "gpt-3.5-turbo", // or use GPT-4 if preferred
+          messages: [
+            { role: "system", content: "You are a helpful assistant." },
+            { role: "user", content: prompt },
+          ],
+          max_tokens: 500,
         },
-      },
-    );
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          },
+        },
+      );
+
+    const maxAttempts = 3;
+    const baseDelayMs = 1000;
+    let response;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        response = await sendOpenAIRequest();
+        break;
+      } catch (err) {
+        if (err.response?.status === 429 && attempt < maxAttempts) {
+          const delayMs = baseDelayMs * 2 ** (attempt - 1);
+          console.error("Rate limit exceeded. Retrying...", {
+            requestId,
+            attempt,
+            nextDelayMs: delayMs,
+          });
+          await sleep(delayMs);
+          continue;
+        }
+        throw err;
+      }
+    }
 
     const translatedText = response?.data?.choices?.[0]?.message?.content;
 
@@ -67,7 +92,17 @@ app.post("/translate", async (req, res) => {
 
     res.json({ translatedText });
   } catch (err) {
-    console.error("OpenAI error:", err.message);
+    const status = err.response?.status;
+    const data = err.response?.data;
+    console.error("OpenAI error:", {
+      requestId,
+      message: err.message,
+      status,
+      data,
+    });
+    if (status === 429) {
+      return res.status(429).json({ error: "Rate limit exceeded" });
+    }
     res.status(500).json({ error: "Translation failed" });
   }
 });
