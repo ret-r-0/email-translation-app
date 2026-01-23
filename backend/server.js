@@ -24,6 +24,8 @@ app.get("/health", (_req, res) => {
 app.post("/translate", async (req, res) => {
   const requestId = Math.random().toString(36).slice(2, 10);
   const { text, targetLang } = req.body;
+  console.log("Request body:", req.body);
+  console.log("OPENAI_API_KEY set:", Boolean(process.env.OPENAI_API_KEY));
 
   if (typeof text !== "string" || !text.length || !targetLang) {
     console.error("Missing parameters:", { requestId });
