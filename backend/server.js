@@ -46,14 +46,16 @@ app.post("/translate", async (req, res) => {
 
     const sendDeepLRequest = () => {
       const body = new URLSearchParams();
-      body.append("auth_key", process.env.DEEPL_API_KEY);
       body.append("text", text);
       body.append("target_lang", deeplTarget);
       body.append("tag_handling", "html");
       body.append("split_sentences", "nonewlines");
 
       return axios.post(deeplUrl, body, {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `DeepL-Auth-Key ${process.env.DEEPL_API_KEY}`,
+        },
       });
     };
 
