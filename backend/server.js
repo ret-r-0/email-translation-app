@@ -40,19 +40,20 @@ app.post("/translate", async (req, res) => {
   }
 
   try {
-    // Constructing the prompt for translation
-    const prompt = `Translate the following text into ${targetLang}: ${text}`;
-
     const sendOpenAIRequest = () =>
       axios.post(
-        "https://api.openai.com/v1/completions",
+        "https://api.openai.com/v1/chat/completions",
         {
-          model: "gpt-3.5-turbo", // or use GPT-4 if preferred
+          model: "gpt-3.5-turbo",
           messages: [
-            { role: "system", content: "You are a helpful assistant." },
-            { role: "user", content: prompt },
+            {
+              role: "system",
+              content: `Translate to ${targetLang}. Return only the translation.`,
+            },
+            { role: "user", content: text },
           ],
           max_tokens: 500,
+          temperature: 0.2,
         },
         {
           headers: {
@@ -70,8 +71,11 @@ app.post("/translate", async (req, res) => {
         response = await sendOpenAIRequest();
         break;
       } catch (err) {
-        if (err.response?.status === 429 && attempt < maxAttempts) {
-          const delayMs = baseDelayMs * 2 ** (attempt - 1);
+        const status = err.response?.status;
+        if (status === 429 && attempt < maxAttempts) {
+          const retryAfter =
+            Number(err.response?.headers?.["retry-after"]) || 0;
+          const delayMs = Math.max(baseDelayMs * 2 ** (attempt - 1), retryAfter * 1000);
           console.error("Rate limit exceeded. Retrying...", {
             requestId,
             attempt,
