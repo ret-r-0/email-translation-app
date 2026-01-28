@@ -9,13 +9,10 @@ const elCopyEmailStatus = document.getElementById("copyEmailStatus");
 const btn = document.getElementById("translateBtn");
 const copyEmailBtn = document.getElementById("copyEmailBtn");
 
-// Вставь свой backend URL (тот, где /health = ok)
 const BACKEND_URL = "https://email-translation-app-production.up.railway.app";
 
-// ДЛИННАЯ линия как в поле (а не markdown-hr)
 const delimiter = "\n\n" + "-".repeat(60) + "\n\n";
 
-// Тексты, которые нужно вставлять на других языках
 const messages = {
   de: "Um eine klarere und schnellere Kommunikation zu gewährleisten, wurde diese Nachricht mit automatischen Übersetzungswerkzeugen übersetzt. Während wir uns um Genauigkeit bemühen, danken wir Ihnen für Ihr Verständnis hinsichtlich möglicher Unvollkommenheiten aufgrund der automatisierten Übersetzung.",
   es: "Para asegurar una comunicación más clara y rápida, este mensaje ha sido traducido utilizando herramientas de traducción automática. Si bien nos esforzamos por lograr la precisión, apreciamos su comprensión sobre las imperfecciones que puedan ocurrir debido a la traducción automatizada.",
@@ -27,21 +24,19 @@ const messages = {
   en: "To ensure clearer and faster communication, this message has been translated using machine translation tools. While we strive for accuracy, we appreciate your understanding regarding any imperfections that may occur due to automated translation.",
 };
 
-// Функция для нормализации языка из локали агента (выбираем правильный язык)
 function normalizeTargetFromAgentLocale(locale) {
   const l = (locale || "").toLowerCase();
 
-  if (l.startsWith("de")) return "de"; // Немецкий
-  if (l.startsWith("es")) return "es"; // Испанский
-  if (l.startsWith("fr")) return "fr"; // Французский
-  if (l.startsWith("it")) return "it"; // Итальянский
-  if (l.startsWith("pt")) return "pt"; // Португальский
-  if (l.startsWith("ja")) return "ja"; // Японский
-  if (l.startsWith("ar")) return "ar"; // Арабский
-  return "en"; // По умолчанию английский
+  if (l.startsWith("de")) return "de";
+  if (l.startsWith("es")) return "es";
+  if (l.startsWith("fr")) return "fr";
+  if (l.startsWith("it")) return "it";
+  if (l.startsWith("pt")) return "pt";
+  if (l.startsWith("ja")) return "ja";
+  if (l.startsWith("ar")) return "ar";
+  return "en";
 }
 
-// Функция для безопасного получения языка из различных путей
 async function getAgentLocaleSafe() {
   const candidates = [
     "ticket.requester.locale", // ищем локаль у клиента
@@ -176,7 +171,9 @@ btn.addEventListener("click", async () => {
         data,
       });
       const message =
-        data?.details || data?.error || `Translation failed (${response.status})`;
+        data?.details ||
+        data?.error ||
+        `Translation failed (${response.status})`;
       throw new Error(message);
     }
 
