@@ -4,7 +4,10 @@ const elStatus = document.getElementById("status");
 const elDetected = document.getElementById("detected");
 const elTarget = document.getElementById("target");
 const elPreview = document.getElementById("preview");
+const elRequesterEmail = document.getElementById("requesterEmail");
+const elCopyEmailStatus = document.getElementById("copyEmailStatus");
 const btn = document.getElementById("translateBtn");
+const copyEmailBtn = document.getElementById("copyEmailBtn");
 
 // Вставь свой backend URL (тот, где /health = ok)
 const BACKEND_URL = "https://email-translation-app-production.up.railway.app";
@@ -85,6 +88,16 @@ async function loadTicketContext() {
     elDetected.textContent = agentLocale;
     elTarget.textContent = target;
 
+    let requesterEmail = "-";
+    try {
+      const data = await client.get("ticket.requester.email");
+      requesterEmail = data?.["ticket.requester.email"] || "-";
+    } catch (err) {
+      console.log("Failed to read requester email:", err);
+    }
+    elRequesterEmail.textContent = requesterEmail;
+    copyEmailBtn.disabled = requesterEmail === "-";
+
     elPreview.textContent = base ? base.slice(0, 1200) : "(no text)";
     btn.disabled = !base;
 
@@ -96,6 +109,22 @@ async function loadTicketContext() {
 }
 
 client.on("app.registered", loadTicketContext);
+
+copyEmailBtn.addEventListener("click", async () => {
+  const email = elRequesterEmail.textContent || "";
+  elCopyEmailStatus.textContent = "";
+  if (!email || email === "-") {
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(email);
+    elCopyEmailStatus.textContent = "Copied";
+  } catch (err) {
+    elCopyEmailStatus.textContent = "Copy failed";
+    console.log("Copy failed:", err);
+  }
+});
 
 btn.addEventListener("click", async () => {
   elStatus.textContent = "Translating…";
