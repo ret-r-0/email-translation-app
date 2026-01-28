@@ -207,7 +207,20 @@ app.post("/translate", async (req, res) => {
       return res.status(500).json({ error: "Empty translation response" });
     }
 
-    res.json({ translatedText: outputText });
+    const normalizedText = (() => {
+      const text = String(outputText).trim();
+      const lines = text.split(/\r?\n/);
+      if (lines.length === 0) {
+        return text;
+      }
+      if (lines.length > 1 && lines[1].trim() === "") {
+        return text;
+      }
+      const [firstLine, ...rest] = lines;
+      return [firstLine, "", ...rest].join("\n");
+    })();
+
+    res.json({ translatedText: normalizedText });
   } catch (err) {
     const status = err.response?.status;
     const data = err.response?.data;

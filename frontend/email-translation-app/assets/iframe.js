@@ -196,7 +196,7 @@ btn.addEventListener("click", async () => {
     const translated = data.translatedText || "";
 
     // Формируем финальный текст: перевод + чёрточки + оригинал
-    const newText = `${translated}${delimiter}${base}`;
+    const newText = `${translated}`;
 
     // Обновляем текст в редакторе
     await client.set("ticket.comment.text", newText);
