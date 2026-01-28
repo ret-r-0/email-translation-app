@@ -130,6 +130,7 @@ btn.addEventListener("click", async () => {
       body: JSON.stringify({
         text: base,
         targetLang: target,
+        introPhrase: messages[agentLocale] || messages["en"],
       }),
     });
 
@@ -152,11 +153,8 @@ btn.addEventListener("click", async () => {
 
     const translated = data.translatedText || "";
 
-    // Вставляем текст о переводе на нужном языке
-    const translationMessage = messages[agentLocale] || messages["en"];
-
     // Формируем финальный текст: перевод + чёрточки + оригинал
-    const newText = `${translationMessage}\n\n${translated}${delimiter}${base}`;
+    const newText = `${translated}${delimiter}${base}`;
 
     // Обновляем текст в редакторе
     await client.set("ticket.comment.text", newText);
