@@ -80,8 +80,12 @@ async function loadTicketContext() {
     // Нормализуем target для перевода
     const target = normalizeTargetFromAgentLocale(agentLocale);
 
-    elDetected.textContent = agentLocale;
-    elTarget.textContent = target;
+    if (elDetected) {
+      elDetected.textContent = agentLocale;
+    }
+    if (elTarget) {
+      elTarget.textContent = target;
+    }
 
     let requesterEmail = "-";
     try {
@@ -90,8 +94,12 @@ async function loadTicketContext() {
     } catch (err) {
       console.log("Failed to read requester email:", err);
     }
-    elRequesterEmail.textContent = requesterEmail;
-    copyEmailBtn.disabled = requesterEmail === "-";
+    if (elRequesterEmail) {
+      elRequesterEmail.textContent = requesterEmail;
+    }
+    if (copyEmailBtn) {
+      copyEmailBtn.disabled = requesterEmail === "-";
+    }
 
     elPreview.textContent = base ? base.slice(0, 1200) : "(no text)";
     btn.disabled = !base;
@@ -105,21 +113,29 @@ async function loadTicketContext() {
 
 client.on("app.registered", loadTicketContext);
 
-copyEmailBtn.addEventListener("click", async () => {
-  const email = elRequesterEmail.textContent || "";
-  elCopyEmailStatus.textContent = "";
+if (copyEmailBtn) {
+  copyEmailBtn.addEventListener("click", async () => {
+  const email = elRequesterEmail?.textContent || "";
+  if (elCopyEmailStatus) {
+    elCopyEmailStatus.textContent = "";
+  }
   if (!email || email === "-") {
     return;
   }
 
   try {
     await navigator.clipboard.writeText(email);
-    elCopyEmailStatus.textContent = "Copied";
+    if (elCopyEmailStatus) {
+      elCopyEmailStatus.textContent = "Copied";
+    }
   } catch (err) {
-    elCopyEmailStatus.textContent = "Copy failed";
+    if (elCopyEmailStatus) {
+      elCopyEmailStatus.textContent = "Copy failed";
+    }
     console.log("Copy failed:", err);
   }
-});
+  });
+}
 
 btn.addEventListener("click", async () => {
   elStatus.textContent = "Translating…";
