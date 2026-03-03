@@ -1,20 +1,15 @@
-# Используем Node.js образ
-FROM node:14
+FROM node:20-alpine
 
-# Устанавливаем рабочую директорию
-WORKDIR /app
+WORKDIR /app/backend
 
-# Копируем package.json и package-lock.json
-COPY package*.json ./
+# Install backend dependencies first for better Docker layer caching
+COPY backend/package*.json ./
+RUN npm ci --omit=dev
 
-# Устанавливаем зависимости
-RUN npm install
+# Copy backend source code
+COPY backend/ ./
 
-# Копируем все остальные файлы
-COPY . .
-
-# Запускаем приложение
-CMD ["npm", "start"]
-
-# Указываем порт для приложения
+ENV NODE_ENV=production
 EXPOSE 3000
+
+CMD ["npm", "start"]
